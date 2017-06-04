@@ -70,39 +70,55 @@ A YouTube bot that lets people from YouTube live chat request songs from your Fo
     2. Type node and hit enter
     3. You're now in javascript land!
   
-####  4. Setting up twitch account for the bot
+####  4. Setting up the YouTube API for the bot
   
-1.	Go to https://www.twitch.tv/ and log out if you’re logged in
+1.	Go to https://console.developers.google.com/apis/dashboard and log in with a Google account
   
-2.	Sign up for a new account
+2.	Click on Select a project on the top left next to the Google APIs logo
   
-3.	Log in to twitch with your bot account
+3.	Click on the plus in the top right to add a project
   
-4.	Go to https://twitchapps.com/tmi/ 
+4.	Give your project a name, it doesn't really matter what you call it, and click on create
   
-5.	Click on connect with twitch
+5.	After your project has been created, click on activate API
   
-6.	Make sure you’re using your bot account
+6.	Click on the YouTube Data API in the YouTube APIs section
   
-7.	Copy the oauth code which looks like *oauth:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx* with a bunch of random characters instead of x’s, you’ll need this code in the next step
+7.	Select your project and activate the YouTube Data API
+ 
+8.	Now click on credentials in the menu on the left of the screen
   
-####  5. Setting up the twitchbot
+9.	Click on Oauth consent screen and then choose your email adress, set a product name and hit save
   
-1.	Open the YouTubeBot folder from this repository
+10.	Click on create credentials and choose OAuth client ID
   
-2.	Open youtubebot-data.json in a text editor (notepad, atom, notepad++ etc.)
+11.	For application type choose other, give it a name and click create
   
-3.	Put the video id of your livestream between the quotation marks after the *"livestreamId":*
+12.	Close the popup message and click on the download icon to the right of your client id
 
-4.  You can also change the cooldown time for either songs or users, these values are in seconds
+13.	Put the file in the YouTubeBot folder from this repository and rename the file to client_secret.json
+  
+####  5. Setting up the YouTube Bot
+  
+1.	Open youtubebot-data.json in the YouTubeBot folder in a text editor (notepad, atom, notepad++ etc.)
+  
+2.	Put the video id of your livestream between the quotation marks after the *"livestreamId":*
 
-5.	Save the file and close the text editor
+3.	You can also change the cooldown time for either songs or users, these values are in seconds
+
+4.	Save the file and close the text editor
+  
+5.	Send a message in the chat with your YouTube account to make sure the chat is working
   
 6.	Run youtubebot-starter.bat, it should be showing some of the songs in your playlist
   
-7.	It now should be working, go to the twitch channel you added the bot to and write *!ping* in chat, it should respond with *pong!*, you can also see the chat in the twitchbot window
+7.	Login with the YouTube channel you want to use as a bot, make sure that channel is either the owner of the livestream or a moderator, otherwise it won't work
+  
+8.	Copy the code you get after logging in and paste it in the command prompt (right click and click paste) and hit enter
+  
+7.	It now should be working, write *!ping* in chat, it should respond with *pong!*, you can also see the chat in the twitchbot window
 
-8.  Try requesting a song from your playlist, it should now be working
+8.	Try requesting a song from your playlist, it should now be working
   
 ####  6. Trouble shooting
   
