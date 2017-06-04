@@ -1,0 +1,15 @@
+{
+  "name": "songrequestyoutubebot",
+  "version": "1.0.0",
+  "description": "A Bot For Foobar2000 Songrequests With YouTube Live Chat",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "MichielP1807",
+  "license": "ISC",
+  "dependencies": {
+    "google-auth-library": "^0.10.0",
+    "googleapis": "^19.0.0"
+  }
+}

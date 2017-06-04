@@ -1,0 +1,420 @@
+var http = require('http');
+var fs = require('fs');
+var readline = require('readline');
+var google = require('googleapis');
+var googleAuth = require('google-auth-library');
+
+// If modifying these scopes, delete your previously saved credentials
+// at ~/.credentials/youtube-nodejs-quickstart.json
+//var SCOPES = ['https://www.googleapis.com/auth/youtube.readonly'];
+var SCOPES = ['https://www.googleapis.com/auth/youtube'];
+var TOKEN_DIR = process.cwd() + '/.credentials/';
+var TOKEN_PATH = TOKEN_DIR + 'youtube-tokens.json';
+var LIVE_CHAT_ID_PATH = TOKEN_DIR + 'live-chat-id.json';
+
+var service = google.youtube('v3');
+var livestreamId;
+var auth;
+
+var SongCooldown = 600;
+var UserCooldown = 30;
+
+var songIsInCoolDown = [];
+var userIsInCoolDown = {};
+
+var messageCounter = 0;
+var maxMessagesPerSecond = 2;
+
+
+console.log(" > Loading User Data");
+console.log(" ");
+fs.readFile('youtubebot-data.json', 'utf8', function readFileCallback(err, data){
+  if (err){
+    console.log(err);
+  } else {
+    var obj = JSON.parse(data);
+	  livestreamId = obj.livestreamId;
+	  SongCooldown = obj.songCooldown;
+	  UserCooldown = obj.userCooldown;
+  }
+});
+
+console.log(" > Loading Foobar Playlist");
+console.log(" ");
+var songCurrent = ["",""];
+var songPrevious = ["",""];
+checkNowPlaying();
+songPrevious = songCurrent;
+var songs = [];
+var playlistFromHttp;
+var request = require("request");
+request({
+    url: "http://127.0.0.1:8888/playlistviewer/?param3=playlist.json",
+    json: true
+}, function (error, response, body) {
+    if (!error && response.statusCode === 200) {
+		playlistFromHttp = body;
+    }
+})
+setTimeout(function(){
+  // format loaded songs
+	songs = songs.concat(playlistFromHttp.split("</br>"));
+	for(var i=0; i<songs.length; i++) {
+		if (songs[i].indexOf('">')!=-1) {
+			songs[i] = songs[i].split('">')[1].replace(/[\'\"]/g,"");
+			console.log(songs[i]);
+		}
+	}
+
+  // Load client secrets from a local file.
+  console.log(" ");
+  console.log(" > Loading Google Login");
+  console.log(" ");
+  fs.readFile('client_secret.json', function processClientSecrets(err, content) {
+    if (err) {
+      console.log('Error loading client secret file: ' + err);
+      return;
+    }
+    // Authorize a client with the loaded credentials, then call the YouTube API.
+    authorize(JSON.parse(content), getVideoID);
+  });
+
+  /**
+   * Create an OAuth2 client with the given credentials, and then execute the
+   * given callback function.
+   *
+   * @param {Object} credentials The authorization client credentials.
+   * @param {function} callback The callback to call with the authorized client.
+   */
+  function authorize(credentials, callback) {
+    var clientSecret = credentials.installed.client_secret;
+    var clientId = credentials.installed.client_id;
+    var redirectUrl = credentials.installed.redirect_uris[0];
+    var auth1 = new googleAuth();
+    var oauth2Client = new auth1.OAuth2(clientId, clientSecret, redirectUrl);
+
+    // Check if we have previously stored a token.
+    fs.readFile(TOKEN_PATH, function(err, token) {
+      if (err) {
+        getNewToken(oauth2Client, callback);
+      } else {
+        oauth2Client.credentials = JSON.parse(token);
+        callback(oauth2Client);
+      }
+    });
+  }
+
+  /**
+   * Get and store new token after prompting for user authorization, and then
+   * execute the given callback with the authorized OAuth2 client.
+   *
+   * @param {google.auth.OAuth2} oauth2Client The OAuth2 client to get token for.
+   * @param {getEventsCallback} callback The callback to call with the authorized
+   *     client.
+   */
+  function getNewToken(oauth2Client, callback) {
+    var authUrl = oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: SCOPES
+    });
+    //console.log('Authorize this app by visiting this url: ', authUrl);
+    var opn = require('opn');
+    opn(authUrl);
+    var rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+    rl.question(' > Enter the code from the page here: ', function(code) {
+      rl.close();
+      oauth2Client.getToken(code, function(err, token) {
+        if (err) {
+          console.log(' > Error while trying to retrieve access token', err);
+          return;
+        }
+        oauth2Client.credentials = token;
+        storeToken(token);
+        callback(oauth2Client);
+      });
+    });
+  }
+
+  /**
+   * Store token to disk be used in later program executions.
+   *
+   * @param {Object} token The token to store to disk.
+   */
+  function storeToken(token) {
+    try {
+      fs.mkdirSync(TOKEN_DIR);
+    } catch (err) {
+      if (err.code != 'EEXIST') {
+        throw err;
+      }
+    }
+    fs.writeFile(TOKEN_PATH, JSON.stringify(token));
+    //console.log('Token stored to ' + TOKEN_PATH);
+  }
+  /**
+   * Lists the names and IDs of up to 10 files.
+   *
+   * @param {google.auth.OAuth2} auth An authorized OAuth2 client.
+   */
+
+  function getVideoID(auth2) {
+    auth = auth2;
+    fs.readFile(LIVE_CHAT_ID_PATH, function(err, videoIDfromFile) {
+      if (err) {
+        var rl = readline.createInterface({
+          input: process.stdin,
+          output: process.stdout
+        });
+        getLiveChatId(livestreamId);
+      } else {
+        videoIDfromFile = JSON.parse(videoIDfromFile);
+        var liveChatId = videoIDfromFile.liveChatId;
+        var videoID = videoIDfromFile.videoID;
+        if (videoID == livestreamId) {
+          setTimeout(function() {updateChat(liveChatId, '', true)}, 3000);
+        } else {
+          getLiveChatId(livestreamId);
+        }
+      }
+    });
+  }
+
+  function getLiveChatId(videoID) {
+    service.liveBroadcasts.list({
+      auth: auth,
+      id: videoID,
+      part: 'snippet'
+    }, function(err, response) {
+      if (err) {
+        console.log('[167] The API returned an error: ' + err);
+        return;
+      }
+
+      try {
+        fs.mkdirSync(TOKEN_DIR);
+      } catch (err) {
+        if (err.code != 'EEXIST') {
+          throw err;
+        }
+      }
+
+      var liveChatId = response.items[0].snippet.liveChatId;
+
+      fs.writeFile(LIVE_CHAT_ID_PATH, '{"liveChatId":"'+liveChatId+'","videoID":"'+videoID+'"}');
+
+      setTimeout(function() {updateChat(liveChatId, '', true)}, 3000);
+    });
+  }
+
+  function updateChat(liveChatId, pageToken, first) {
+    if (first) {
+      getChatMessages(liveChatId, pageToken, function(response) {
+        console.log(' > Connected To Chat!');
+        console.log(" ");
+        setTimeout(function() {updateChat(liveChatId, response.nextPageToken, false)}, 1500)
+      });
+    } else {
+      getChatMessages(liveChatId, pageToken, function(response) {
+        var messages = response.items;
+        if (messages.length>0) {
+          for (i=0; i<messages.length; i++) {
+            onNewChatMessage(liveChatId, messages[i]);
+          }
+        }
+        setTimeout(function() {updateChat(liveChatId, response.nextPageToken, false)}, 1500);
+      });
+    }
+  }
+
+  function getChatMessages(liveChatId, pageToken, callback) {
+    service.liveChatMessages.list({
+      auth: auth,
+      liveChatId: liveChatId,
+      pageToken: pageToken,
+      part: 'snippet, authorDetails'
+    }, function(err, response){
+      if (err) {
+        console.log('[212] The API returned an error: ' + err);
+        return;
+      }
+      callback(response)
+    });
+  }
+
+  function sendMessage(liveChatId, message) {
+    if (messageCounter<maxMessagesPerSecond) {
+      messageCounter++;
+      service.liveChatMessages.insert({
+        auth: auth,
+        part: 'snippet',
+        resource: {
+          "snippet": {
+            "liveChatId": liveChatId,
+            "type": "textMessageEvent",
+            "textMessageDetails": {
+              "messageText": message
+            }
+          }
+        }
+      }, function(err, response){
+        if (err) {
+          console.log('[264] The API returned an error: ' + err);
+          return;
+        }
+        setTimeout(resetMessageCounter, 1000);
+      });
+      setTimeout(function(){sendMessage(liveChatId, message)}, 100);
+    }
+  }
+
+  function onNewChatMessage(livechatId, messageObject) {
+    var message = messageObject.snippet.displayMessage.toLowerCase();
+    var channelId = messageObject.authorDetails.channelId;
+    var username = messageObject.authorDetails.displayName;
+    console.log(username + ": " + message);
+
+    // COMMAND: !ping
+    if (message == "!ping") {
+      sendMessage(livechatId, "pong!");
+    // COMMAND: !currentsong
+    } else if (message.indexOf("!currentsong")==0 || message.indexOf("!currenttrack")==0 || message.indexOf("!nowplaying")==0 || (message.indexOf("!song")==0 && message.indexOf("!songrequest")==-1)) {
+      request({
+        url: "http://127.0.0.1:8888/playlistviewer/?param3=nowPlaying.json",
+        json: true
+      }, function (error, response, body) {
+        if (!error && response.statusCode === 200) {
+          if (body.isPlaying == 1) {
+            if (songCurrent[0]=="?") {
+              sendMessage(livechatId, 'Current song: "' + songCurrent[1] + '"! @' + username);
+            } else {
+              sendMessage(livechatId, 'Current song: "' + songCurrent[1] + '" by ' + songCurrent[0] + '! @' + username);
+            }
+          } else {
+            sendMessage(livechatId, "No music playing... @" + username);
+          }
+        }
+      })
+      // COMMAND: !previoussong
+  		} else if (message.indexOf("!previoussong")==0 || message.indexOf("!previoustrack")==0) {
+			   if (songPrevious[0].length>1 && songPrevious[1].length>1) {
+				   if (songPrevious[0]=="?") {
+					   sendMessage(livechatId, 'Previous song: "' + songPrevious[1] + '"! @' + username);
+				   } else {
+					   sendMessage(livechatId, 'Previous song: "' + songPrevious[1] + '" by ' + songPrevious[0] + '! @' + username);
+				   }
+			   } else {
+				    sendMessage(livechatId, "I can't remember the previous song... @" + username);
+			   }
+		  // COMMAND: !queuelength
+		  } else if (message.indexOf("!queuelength")==0) {
+  			request({
+  				url: "http://127.0.0.1:8888/playlistviewer/?param3=nowPlaying.json",
+  				json: true
+  			}, function (error, response, body) {
+  				if (!error && response.statusCode === 200) {
+  					if (body.queueLength == "") {
+  						sendMessage(livechatId, 'The queue is currently empty. @' + username);
+  					} else {
+  						sendMessage(livechatId, 'The playback queue is ' + body.queueLength + ' long. @' + username);
+  					}
+  				}
+  			})
+  		// COMMAND: !songrequest
+  		} else if (message.indexOf("!songrequest")==0 || message.indexOf("!sq")==0) {
+			var songWord = message.split(" ");;
+			songWord.shift(); // remove the command name
+			for (i = 0; i < songWord.length; i++) {
+				songWord[i] = songWord[i].replace(/[.,\/#!$%\^&\*;:{}=\-_`~()\'\"]/g,"").toLowerCase(); // remove interpunction
+			}
+			var songPossible = [];
+			var songIndex = -1;
+			if (songWord.length == 0 || message.substring(13) == false || message.substring(13)=="***" || message.indexOf("!songrequest ")!=0) {
+				sendMessage(livechatId, 'Request songs from the playlist by typing !songrequest + something to search for! @' + username);
+			} else {
+				for (i = 0; i < songs.length; i++) {
+					var active = true;
+					for (j = 0; j < songWord.length; j++) {
+						if (songs[i].toLowerCase().indexOf(songWord[j])==-1 && songWord[j]!="***") active=false;
+					}
+					if (active) {
+						songPossible.push(i);
+					}
+				}
+				if (songPossible.length > 1) { //choose a possible song
+					var songPossibleNoRemix = [];
+					for (i = 0; i < songPossible.length; i++) { // prefer non remixes/acapellas
+						if (songs[songPossible[i]].toLowerCase().indexOf("remix")==-1&&songs[songPossible[i]].toLowerCase().indexOf("acapella")==-1) {
+							songPossibleNoRemix.push(songPossible[i]);
+						}
+					}
+					if (songPossibleNoRemix.length > 1) {
+						songIndex = songPossibleNoRemix[Math.floor(Math.random()*songPossibleNoRemix.length)];
+					} else {
+						songIndex = songPossible[Math.floor(Math.random()*songPossible.length)];
+					}
+				} else {
+					songIndex = songPossible[0];
+				}
+				if (songPossible.length > 0) {
+					if (songIsInCoolDown[songIndex] === true) {
+						sendMessage(livechatId, 'The song "'+songs[songIndex]+'" is on a cooldown... @' + username);
+					} else if (userIsInCoolDown[channelId] === true) {
+						sendMessage(livechatId, 'You can only request a song every ' + UserCooldown + ' seconds... @' + username);
+					} else {
+						songIsInCoolDown[songIndex] = true;
+						userIsInCoolDown[channelId] = true;
+						setTimeout(resetSongCoolDown,SongCooldown*1000,songIndex);
+						setTimeout(resetUserCoolDown,UserCooldown*1000,channelId,username);
+						http.get("http://127.0.0.1:8888/default/?cmd=QueueItems&param1="+(songIndex),function(res){
+							sendMessage(livechatId, 'I found something for you: "'+songs[songIndex]+'" @' + username);
+						});
+					}
+				} else {
+					sendMessage(livechatId, "I didn't find anything... @" + username);
+					fs.appendFile('failedSongs.txt',  "\r\n [" + username + "] " + message.substring(13), function (err) {});
+				}
+			}
+		}
+  }
+}, 1000);
+
+function checkNowPlaying() {
+	var request = require("request");
+	request({
+		url: "http://127.0.0.1:8888/playlistviewer/?param3=nowPlaying.json",
+		json: true
+	}, function (error, response, body) {
+		if (!error && response.statusCode === 200) {
+			var songCurrentP = songCurrent;
+			songCurrent = [body.artist, body.title];
+			if (songCurrent[0] != songCurrentP[0] || songCurrent[1] != songCurrentP[1]) {
+				console.log(" ");
+				console.log(" > New song: " + songCurrent[0] + " - " + songCurrent[1]);
+				console.log(" ");
+				songPrevious = songCurrentP;
+			}
+		}
+	})
+	setTimeout(checkNowPlaying,10000);
+}
+
+function resetSongCoolDown(songIndexToReset) {
+	console.log(" ");
+	console.log(" > Reset cooldown for " + songs[songIndexToReset]);
+	console.log(" ");
+	songIsInCoolDown[songIndexToReset] = false;
+}
+
+function resetUserCoolDown(channelId, username) {
+	console.log(" ");
+	console.log(" > Reset cooldown for " + username);
+	console.log(" ");
+	userIsInCoolDown[channelId] = false;
+}
+
+function resetMessageCounter() {
+	messageCounter--;
+}
