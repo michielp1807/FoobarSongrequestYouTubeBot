@@ -266,6 +266,7 @@ setTimeout(function(){
         }
         setTimeout(resetMessageCounter, 1000);
       });
+    } else {
       setTimeout(function(){sendMessage(liveChatId, message)}, 100);
     }
   }
