@@ -1,5 +1,6 @@
 ﻿# MichielP1807’s Foobar Songrequest YouTube Bot
 A YouTube bot that lets people from YouTube live chat request songs from your Foobar2000 playlist.
+For the Twitch version of this bot go [here](https://github.com/MichielP1807/FoobarSongrequestTwitchBot).
 
 ## Needed for this bot:
 
