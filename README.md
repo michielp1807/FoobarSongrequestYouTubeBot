@@ -114,13 +114,15 @@ For the Twitch version of this bot go [here](https://github.com/MichielP1807/Foo
   
 6.	Run youtubebot-starter.bat, it should be showing some of the songs in your playlist
   
-7.	Login with the YouTube channel you want to use as a bot, make sure that channel is either the owner of the livestream or a moderator, otherwise it won't work
+7.	Login with the YouTube channel that is owner of the livestream
   
 8.	Copy the code you get after logging in and paste it in the command prompt (right click and click paste) and hit enter
   
-7.	It now should be working, write *!ping* in chat, it should respond with *pong!*, you can also see the chat in the twitchbot window
+9.  If you have a seperate YouTube channel you want to use as a bot, close the program and delete youtube-tokens.json inside the .credentials folder, you can now run youtubebot-starter.bat again and sign in the the account you want to have as a bot (make sure that the bot account is a moderator in chat, otherwise it won't work)
+  
+10.	It now should be working, write *!ping* in chat, it should respond with *pong!*, you can also see the chat in the twitchbot window
 
-8.	Try requesting a song from your playlist, it should now be working
+11.	Try requesting a song from your playlist, it should now be working
   
 ####  6. Trouble shooting
   
