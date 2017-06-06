@@ -214,7 +214,7 @@ setTimeout(function(){
       getChatMessages(liveChatId, pageToken, function(response) {
         console.log(' > Connected To Chat!');
         console.log(" ");
-        setTimeout(function() {updateChat(liveChatId, response.nextPageToken, false)}, 1500)
+        setTimeout(function() {updateChat(liveChatId, response.nextPageToken, false)}, 2000)
       });
     } else {
       getChatMessages(liveChatId, pageToken, function(response) {
@@ -224,7 +224,7 @@ setTimeout(function(){
             onNewChatMessage(liveChatId, messages[i]);
           }
         }
-        setTimeout(function() {updateChat(liveChatId, response.nextPageToken, false)}, 1500);
+        setTimeout(function() {updateChat(liveChatId, response.nextPageToken, false)}, 2000);
       });
     }
   }
@@ -237,10 +237,12 @@ setTimeout(function(){
       part: 'snippet, authorDetails'
     }, function(err, response){
       if (err) {
-        console.log('[212] The API returned an error: ' + err);
-        return;
+        console.log('[240] The API returned an error: ' + err);
+        setTimeout(function() {updateChat(liveChatId, pageToken, false)}, 2000);
+        //return;
+      } else {
+        callback(response);
       }
-      callback(response)
     });
   }
 
@@ -298,87 +300,61 @@ setTimeout(function(){
           }
         }
       })
-      // COMMAND: !previoussong
-  		} else if (message.indexOf("!previoussong")==0 || message.indexOf("!previoustrack")==0) {
-			   if (songPrevious[0].length>1 && songPrevious[1].length>1) {
-				   if (songPrevious[0]=="?") {
-					   sendMessage(livechatId, 'Previous song: "' + songPrevious[1] + '"! @' + username);
-				   } else {
-					   sendMessage(livechatId, 'Previous song: "' + songPrevious[1] + '" by ' + songPrevious[0] + '! @' + username);
-				   }
+    // COMMAND: !previoussong
+		} else if (message.indexOf("!previoussong")==0 || message.indexOf("!previoustrack")==0) {
+		   if (songPrevious[0].length>1 && songPrevious[1].length>1) {
+			   if (songPrevious[0]=="?") {
+				   sendMessage(livechatId, 'Previous song: "' + songPrevious[1] + '"! @' + username);
 			   } else {
-				    sendMessage(livechatId, "I can't remember the previous song... @" + username);
+				   sendMessage(livechatId, 'Previous song: "' + songPrevious[1] + '" by ' + songPrevious[0] + '! @' + username);
 			   }
-		  // COMMAND: !queuelength
-		  } else if (message.indexOf("!queuelength")==0) {
-  			request({
-  				url: "http://127.0.0.1:8888/playlistviewer/?param3=nowPlaying.json",
-  				json: true
-  			}, function (error, response, body) {
-  				if (!error && response.statusCode === 200) {
-  					if (body.queueLength == "") {
-  						sendMessage(livechatId, 'The queue is currently empty. @' + username);
-  					} else {
-  						sendMessage(livechatId, 'The playback queue is ' + body.queueLength + ' long. @' + username);
-  					}
-  				}
-  			})
-  		// COMMAND: !songrequest
-  		} else if (message.indexOf("!songrequest")==0 || message.indexOf("!sq")==0) {
-			var songWord = message.split(" ");;
-			songWord.shift(); // remove the command name
-			for (i = 0; i < songWord.length; i++) {
-				songWord[i] = songWord[i].replace(/[.,\/#!$%\^&\*;:{}=\-_`~()\'\"]/g,"").toLowerCase(); // remove interpunction
-			}
-			var songPossible = [];
-			var songIndex = -1;
-			if (songWord.length == 0 || message.substring(13) == false || message.substring(13)=="***" || message.indexOf("!songrequest ")!=0) {
-				sendMessage(livechatId, 'Request songs from the playlist by typing !songrequest + something to search for! @' + username);
-			} else {
-				for (i = 0; i < songs.length; i++) {
-					var active = true;
-					for (j = 0; j < songWord.length; j++) {
-						if (songs[i].toLowerCase().indexOf(songWord[j])==-1 && songWord[j]!="***") active=false;
-					}
-					if (active) {
-						songPossible.push(i);
-					}
-				}
-				if (songPossible.length > 1) { //choose a possible song
-					var songPossibleNoRemix = [];
-					for (i = 0; i < songPossible.length; i++) { // prefer non remixes/acapellas
-						if (songs[songPossible[i]].toLowerCase().indexOf("remix")==-1&&songs[songPossible[i]].toLowerCase().indexOf("acapella")==-1) {
-							songPossibleNoRemix.push(songPossible[i]);
-						}
-					}
-					if (songPossibleNoRemix.length > 1) {
-						songIndex = songPossibleNoRemix[Math.floor(Math.random()*songPossibleNoRemix.length)];
+		   } else {
+			    sendMessage(livechatId, "I can't remember the previous song... @" + username);
+		   }
+	  // COMMAND: !queuelength
+	  } else if (message.indexOf("!queuelength")==0) {
+			request({
+				url: "http://127.0.0.1:8888/playlistviewer/?param3=nowPlaying.json",
+				json: true
+			}, function (error, response, body) {
+				if (!error && response.statusCode === 200) {
+					if (body.queueLength == "") {
+						sendMessage(livechatId, 'The queue is currently empty. @' + username);
 					} else {
-						songIndex = songPossible[Math.floor(Math.random()*songPossible.length)];
+						sendMessage(livechatId, 'The playback queue is ' + body.queueLength + ' long. @' + username);
 					}
-				} else {
-					songIndex = songPossible[0];
 				}
-				if (songPossible.length > 0) {
-					if (songIsInCoolDown[songIndex] === true) {
-						sendMessage(livechatId, 'The song "'+songs[songIndex]+'" is on a cooldown... @' + username);
-					} else if (userIsInCoolDown[channelId] === true) {
-						sendMessage(livechatId, 'You can only request a song every ' + UserCooldown + ' seconds... @' + username);
-					} else {
-						songIsInCoolDown[songIndex] = true;
-						userIsInCoolDown[channelId] = true;
-						setTimeout(resetSongCoolDown,SongCooldown*1000,songIndex);
-						setTimeout(resetUserCoolDown,UserCooldown*1000,channelId,username);
-						http.get("http://127.0.0.1:8888/default/?cmd=QueueItems&param1="+(songIndex),function(res){
-							sendMessage(livechatId, 'I found something for you: "'+songs[songIndex]+'" @' + username);
-						});
-					}
-				} else {
-					sendMessage(livechatId, "I didn't find anything... @" + username);
-					fs.appendFile('failedSongs.txt',  "\r\n [" + username + "] " + message.substring(13), function (err) {});
-				}
-			}
-		}
+			})
+		// COMMAND: !songrequest
+		} else if (message.indexOf("!songrequest")==0 || message.indexOf("!sq")==0) {
+      if (userIsInCoolDown[channelId] === true) {
+        sendMessage(livechatId, 'You can only request a song every ' + UserCooldown + ' seconds... @' + username);
+      } else {
+        var songWord = message.replace(/[-+,.–()']/g,'').toLowerCase().split(" ");
+        songWord.shift();
+        if (songWord.length == 0 || message.substring(13) == false || message.substring(13)=="***" || message.indexOf("!songrequest ")!=0) {
+  			  sendMessage(livechatId, 'Request songs from the playlist by typing !songrequest + something to search for! @' + username);
+  		  } else {
+          var result = searchSongs(songWord);
+          if (result == undefined) {
+            sendMessage(livechatId, "No results found. @" + username);
+            fs.appendFile('failedSongs.txt',  "\r\n [" + username + "] " + message.substring(13), function (err) {});
+          } else {
+            if (songIsInCoolDown[result] === true) {
+              sendMessage(livechatId, 'The song "'+songs[result]+'" is on a cooldown... @' + username);
+            } else {
+              songIsInCoolDown[result] = true;
+  						userIsInCoolDown[channelId] = true;
+  						setTimeout(resetSongCoolDown,SongCooldown*1000,result);
+  						setTimeout(resetUserCoolDown,UserCooldown*1000,channelId,username);
+  						http.get("http://127.0.0.1:8888/default/?cmd=QueueItems&param1="+(result),function(res){
+  							sendMessage(livechatId, 'I found something for you: "'+songs[result]+'" @' + username);
+              });
+            }
+          }
+  		  }
+      }
+	  }
   }
 }, 1000);
 
@@ -396,9 +372,12 @@ function checkNowPlaying() {
 				console.log(" > New song: " + songCurrent[0] + " - " + songCurrent[1]);
 				console.log(" ");
 				songPrevious = songCurrentP;
+        var songIndex = searchSongs((songCurrent[0] + " " + songCurrent[1]).replace(/[-+,.–()']/g,'').toLowerCase().split(" "));
+        songIsInCoolDown[songIndex] = true;
+        setTimeout(resetSongCoolDown,SongCooldown*1000,songIndex);
 			}
 		}
-	})
+	});
 	setTimeout(checkNowPlaying,10000);
 }
 
@@ -418,4 +397,40 @@ function resetUserCoolDown(channelId, username) {
 
 function resetMessageCounter() {
 	messageCounter--;
+}
+
+// Search Algorithm
+
+function searchSongs(input) {
+  var highestScore = 0;
+  var bestSong = -1;
+  for (var i=0; i<songs.length; i++) {
+    songScore = getScore(input, songs[i]);
+    if (songScore>highestScore) {
+      highestScore = songScore;
+      bestSong = i;
+    } else if (songScore == highestScore && highestScore != 0) {
+      if (Math.random()<.4) bestSong = i;
+    }
+  }
+  console.log(input);
+  return bestSong;
+}
+
+function getScore(input, song) {
+  song = song.replace(/[-+,.–()']/g,'').replace('  ',' ').toLowerCase();
+  songWords = song.split(' ');
+  var score = 0;
+
+  for (var i=0; i<input.length; i++) {
+    for (var j=0; j<songWords.length; j++) {
+      if (songWords[j].indexOf(input[i]) != -1) score+=10;
+      if (songWords[j]===input[i]) score+=15;
+    }
+  }
+
+  //score -= (songWords.length - input.length);
+
+  console.log(score + ' - ' + song);
+  return score;
 }
