@@ -75,6 +75,7 @@ setTimeout(function(){
       console.log('Error loading client secret file: ' + err);
       return;
     }
+
     // Authorize a client with the loaded credentials, then call the YouTube API.
     authorize(JSON.parse(content), getVideoID);
   });
@@ -92,6 +93,8 @@ setTimeout(function(){
     var redirectUrl = credentials.installed.redirect_uris[0];
     var auth1 = new googleAuth();
     var oauth2Client = new auth1.OAuth2(clientId, clientSecret, redirectUrl);
+
+    setInterval(refreshToken, 1800000, oauth2Client);
 
     // Check if we have previously stored a token.
     fs.readFile(TOKEN_PATH, function(err, token) {
@@ -135,6 +138,15 @@ setTimeout(function(){
         storeToken(token);
         callback(oauth2Client);
       });
+    });
+  }
+
+  function refreshToken(oauth2Client) {
+    console.log(" > Refreshing Token");
+    oauth2Client.refreshAccessToken(function(err, credentials, response){
+      //console.log(credentials);
+      oauth2Client.credentials = credentials;
+      storeToken(credentials);
     });
   }
 
