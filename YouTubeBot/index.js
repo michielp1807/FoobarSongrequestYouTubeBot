@@ -21,6 +21,7 @@ var UserCooldown = 30;
 
 var songIsInCoolDown = [];
 var userIsInCoolDown = {};
+var songrequestsUsage = {}; // stores song while waiting for confirmation
 
 var messageCounter = 0;
 var maxMessagesPerSecond = 2;
@@ -201,7 +202,7 @@ setTimeout(function(){
       part: 'snippet'
     }, function(err, response) {
       if (err) {
-        console.log('[167] The API returned an error: ' + err);
+        console.log('[line 205] The API returned an error: ' + err);
         return;
       }
 
@@ -249,7 +250,7 @@ setTimeout(function(){
       part: 'snippet, authorDetails'
     }, function(err, response){
       if (err) {
-        console.log('[240] The API returned an error: ' + err);
+        console.log('[line 253] The API returned an error: ' + err);
         setTimeout(function() {updateChat(liveChatId, pageToken, false)}, 2000);
         //return;
       } else {
@@ -275,7 +276,7 @@ setTimeout(function(){
         }
       }, function(err, response){
         if (err) {
-          console.log('[264] The API returned an error: ' + err);
+          console.log('[line 279] The API returned an error: ' + err);
           return;
         }
         setTimeout(resetMessageCounter, 1000);
@@ -338,37 +339,53 @@ setTimeout(function(){
 				}
 			})
 		// COMMAND: !songrequest
-		} else if (message.indexOf("!songrequest")==0 || message.indexOf("!sq")==0) {
+		} else if (message.indexOf("!songrequest")==0) {
       if (userIsInCoolDown[channelId] === true) {
         sendMessage(livechatId, 'You can only request a song every ' + UserCooldown + ' seconds... @' + username);
       } else {
-        var songWord = message.replace(/[-+,.–()']/g,'').toLowerCase().split(" ");
-        songWord.shift();
-        if (songWord.length == 0 || message.substring(13) == false || message.substring(13)=="***" || message.indexOf("!songrequest ")!=0) {
+        message = message.substring(12).replace(/[-+,.–()'"\\\/\[\]~!@#$%^&*_=;:<>{}|]|\s/g,' ').replace(/\s\s+/g,' ').toLowerCase();
+        if (message.length < 3) {
   			  sendMessage(livechatId, 'Request songs from the playlist by typing !songrequest + something to search for! @' + username);
   		  } else {
-          var result = searchSongs(songWord);
-          if (result == undefined) {
-            sendMessage(livechatId, "No results found. @" + username);
-            fs.appendFile('failedSongs.txt',  "\r\n [" + username + "] " + message.substring(13), function (err) {});
-          } else {
-            if (songIsInCoolDown[result] === true) {
-              sendMessage(livechatId, 'The song "'+songs[result]+'" is on a cooldown... @' + username);
-            } else {
-              songIsInCoolDown[result] = true;
-  						userIsInCoolDown[channelId] = true;
-  						setTimeout(resetSongCoolDown,SongCooldown*1000,result);
-  						setTimeout(resetUserCoolDown,UserCooldown*1000,channelId,username);
-  						http.get("http://127.0.0.1:8888/default/?cmd=QueueItems&param1="+(result),function(res){
-  							sendMessage(livechatId, 'I found something for you: "'+songs[result]+'" @' + username);
-              });
-            }
-          }
+			var result = searchSongs(message);
+			if (result == undefined) {
+			  sendMessage(livechatId, "No results found. @" + username);
+			  fs.appendFile('failedSongs.txt',  "\r\n [" + username + "] " + message.substring(13), function (err) {});
+			} else {
+			  if (songIsInCoolDown[result] === true) {
+			    sendMessage(livechatId, 'The song "'+songs[result]+'" is on a cooldown... @' + username);
+			  } else {
+				songrequestsUsage[channelId] = result;
+				sendMessage(livechatId, 'I found something for you: "'+songs[result]+'", say "!yes" for it to be added to the queue! @' + username);
+				setTimeout(resetSongrequestUsage,5000,channelId,result);
+			  }
+			}
   		  }
-      }
+        }
+		// COMMAND: !yes (confirmation for songrequests)
+	  } else if (message == "!yes" && songrequestsUsage[channelId]) {
+		var result = songrequestsUsage[channelId];
+		delete songrequestsUsage[channelId];
+		if (songIsInCoolDown[result] === true) {
+			sendMessage(livechatId, 'The song "'+songs[result]+'" is on a cooldown... @' + username);
+		} else {
+			songIsInCoolDown[result] = true;
+			userIsInCoolDown[channelId] = true;
+			setTimeout(resetSongCoolDown,SongCooldown*1000,result);
+			setTimeout(resetUserCoolDown,UserCooldown*1000,channelId,username);
+			http.get("http://127.0.0.1:8888/default/?cmd=QueueItems&param1="+(result),function(res){
+			  sendMessage(livechatId, '"'+songs[result]+'" has been added to the queue! @' + username);
+			});
+		}
 	  }
-  }
+	}
 }, 1000);
+
+function resetSongrequestUsage(channelId,result) {
+	if (songrequestsUsage[channelId]==result) {
+		delete songrequestsUsage[channelId];
+	}
+}
 
 function checkNowPlaying() {
 	var request = require("request");
@@ -404,7 +421,7 @@ function resetUserCoolDown(channelId, username) {
 	console.log(" ");
 	console.log(" > Reset cooldown for " + username);
 	console.log(" ");
-	userIsInCoolDown[channelId] = false;
+	delete userIsInCoolDown[channelId];
 }
 
 function resetMessageCounter() {
@@ -414,6 +431,7 @@ function resetMessageCounter() {
 // Search Algorithm
 
 function searchSongs(input) {
+  input = input.toString().replace(/[-+,.–()'"\\\/\[\]~!@#$%^&*_=;:<>{}|]|\s/g,' ').replace(/\s\s+/g,' ').toLowerCase();
   var highestScore = 0;
   var bestSong = -1;
   for (var i=0; i<songs.length; i++) {
@@ -425,24 +443,19 @@ function searchSongs(input) {
       if (Math.random()<.4) bestSong = i;
     }
   }
-  console.log(input);
   return bestSong;
 }
 
 function getScore(input, song) {
-  song = song.replace(/[-+,.–()']/g,'').replace('  ',' ').toLowerCase();
-  songWords = song.split(' ');
+  song = song.replace(/[-+,.–()'"\\\/\[\]~!@#$%^&*_=;:<>{}|]|\s/g,' ').replace(/\s\s+/g,' ').toLowerCase();
   var score = 0;
 
   for (var i=0; i<input.length; i++) {
-    for (var j=0; j<songWords.length; j++) {
-      if (songWords[j].indexOf(input[i]) != -1) score+=10;
-      if (songWords[j]===input[i]) score+=15;
+    for (var j=i+1; j<input.length+1; j++) {
+      if (song.indexOf(input.substring(i,j)) != -1) score+=input.substring(i,j).length;
     }
   }
-
-  //score -= (songWords.length - input.length);
-
-  console.log(score + ' - ' + song);
+  
+  //console.log(score + ' - ' + song);
   return score;
 }
