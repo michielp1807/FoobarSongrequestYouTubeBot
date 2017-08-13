@@ -357,7 +357,7 @@ setTimeout(function(){
 			  } else {
 				songrequestsUsage[channelId] = result;
 				sendMessage(livechatId, 'I found something for you: "'+songs[result]+'", say "!yes" for it to be added to the queue! @' + username);
-				setTimeout(resetSongrequestUsage,5000,channelId,result);
+				setTimeout(resetSongrequestUsage,30000,channelId,result);
 			  }
 			}
   		  }
