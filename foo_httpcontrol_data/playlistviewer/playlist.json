@@ -1,3 +1,4 @@
 {
-	"playlist":"[PLAYLIST]"
+	"playlistLength":"[PLAYLIST_PLAYING_ITEMS_COUNT]",
+	"playlist":[PLAYLIST_JS]
 }

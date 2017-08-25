@@ -55,18 +55,18 @@ request({
 }, function (error, response, body) {
     if (!error && response.statusCode === 200) {
 		playlistFromHttp = body;
-    }
+    } else {
+		console.log("Error: " + error)
+	}
 })
 setTimeout(function(){
   // format loaded songs
-	songs = songs.concat(playlistFromHttp.split("</br>"));
+	songs = playlistFromHttp.playlist;
 	for(var i=0; i<songs.length; i++) {
-		if (songs[i].indexOf('">')!=-1) {
-			songs[i] = songs[i].split('">')[1].replace(/[\'\"]/g,"");
-			console.log(songs[i]);
-		}
+		console.log(songs[i]);
 	}
-
+	console.log(songs[0]);
+	
   // Load client secrets from a local file.
   console.log(" ");
   console.log(" > Loading Google Login");

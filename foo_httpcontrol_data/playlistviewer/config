@@ -3,7 +3,7 @@
 [foo_httpcontrol]
 url=/
 ; defines formatting of a playlist row using foobar2000 titleformatting.
-playlist_row=%artist% '-' %title%</br>
+playlist_row = ""%artist% '-' %title%""
 ; defines formatting of a helper macros using foobar2000 titleformatting.
 helper1=[%album artist% ]['['%album%[ CD%discnumber%][ #%tracknumber%]']' ]%title%[ '//' %track artist%]
 helper2=%artist%

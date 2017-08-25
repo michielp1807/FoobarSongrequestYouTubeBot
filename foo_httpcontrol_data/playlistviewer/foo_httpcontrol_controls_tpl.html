@@ -12,7 +12,15 @@
   <h1><center>MichielP1807s Foobar Songrequest Twitch Bot</center></h1>
   </br>
   <h3>Please verify it is working:</h3>
-  <p>Now Playing: <i>[HELPER3]</i> by <i>[HELPER2]</i></p>
+  <p id="NowPlaying">[IS_PLAYING]</p>
+  <script>
+    var nowPlaying = document.getElementById("NowPlaying");
+	if (nowPlaying.innerHTML == "1") {
+	  nowPlaying.innerHTML = "Now Playing: <i>[HELPER3]</i> by <i>[HELPER2]</i>.";
+	} else {
+	  nowPlaying.innerHTML = "Music is paused.";
+	}
+  </script>
   <h3>JSON data files:</h3>
   <ul>
     <li><a href="http://127.0.0.1:8888/playlistviewer/?param3=playlist.json">Playlist data</a></li>

@@ -2,5 +2,7 @@
 	"artist":"[HELPER2]",
 	"title":"[HELPER3]",
 	"isPlaying":"[IS_PLAYING]",
+	"position":"[ITEM_PLAYING_POS]",
+	"length":"[ITEM_PLAYING_LEN]",
 	"queueLength":"[QUEUE_TOTAL_TIME]"
 }
