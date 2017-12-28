@@ -53,20 +53,27 @@ request({
     url: "http://127.0.0.1:8888/playlistviewer/?param3=playlist.json",
     json: true
 }, function (error, response, body) {
-    if (!error && response.statusCode === 200) {
-		playlistFromHttp = body;
-    } else {
-		console.log("Error: " + error)
-	}
+  if (!error && response.statusCode === 200) {
+	   playlistFromHttp = body;
+     setTimeout(playlistLoaded, 500);
+  } else {
+	   console.log("Error loading playlist: " + error);
+     console.log("Response StatusCode: " + response.statusCode);
+   }
 })
-setTimeout(function(){
+function playlistLoaded() {
   // format loaded songs
 	songs = playlistFromHttp.playlist;
 	for(var i=0; i<songs.length; i++) {
-		console.log(songs[i]);
+    if (songs[i].artist != "?") {
+      songs[i].songname = songs[i].artist + " - " + songs[i].title;
+    } else {
+      songs[i].songname = songs[i].title;
+    }
+		console.log(songs[i].songname);
 	}
-	console.log(songs[0]);
-	
+	console.log(songs[0].songname);
+
   // Load client secrets from a local file.
   console.log(" ");
   console.log(" > Loading Google Login");
@@ -122,8 +129,14 @@ setTimeout(function(){
       scope: SCOPES
     });
     //console.log('Authorize this app by visiting this url: ', authUrl);
-    var opn = require('opn');
-    opn(authUrl);
+    try {
+      var opn = require('opn');
+      opn(authUrl);
+    } catch(err) {
+      console.log(" > OPN returned an error, try visiting this url mannually instead:");
+      console.log(authUrl);
+    }
+
     var rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
@@ -214,11 +227,16 @@ setTimeout(function(){
         }
       }
 
-      var liveChatId = response.items[0].snippet.liveChatId;
-
-      fs.writeFile(LIVE_CHAT_ID_PATH, '{"liveChatId":"'+liveChatId+'","videoID":"'+videoID+'"}');
-
-      setTimeout(function() {updateChat(liveChatId, '', true)}, 3000);
+      if (response && !response.items && !response.items[0]) {
+        var liveChatId = response.items[0].snippet.liveChatId;
+        fs.writeFile(LIVE_CHAT_ID_PATH, '{"liveChatId":"'+liveChatId+'","videoID":"'+videoID+'"}');
+        setTimeout(function() {updateChat(liveChatId, '', true)}, 3000);
+      } else {
+        console.log("Error: Can't get Live Chat ID");
+        console.log(" ");
+        console.log("Please login with the account that you're hosting the livestream with!");
+        console.log(" ");
+      }
     });
   }
 
@@ -353,10 +371,10 @@ setTimeout(function(){
 			  fs.appendFile('failedSongs.txt',  "\r\n [" + username + "] " + message.substring(13), function (err) {});
 			} else {
 			  if (songIsInCoolDown[result] === true) {
-			    sendMessage(livechatId, 'The song "'+songs[result]+'" is on a cooldown... @' + username);
+			    sendMessage(livechatId, 'The song "'+songs[result].songname+'" is on a cooldown... @' + username);
 			  } else {
 				songrequestsUsage[channelId] = result;
-				sendMessage(livechatId, 'I found something for you: "'+songs[result]+'", say "!yes" for it to be added to the queue! @' + username);
+				sendMessage(livechatId, 'I found something for you: "'+songs[result].songname+'", say "!yes" for it to be added to the queue! @' + username);
 				setTimeout(resetSongrequestUsage,30000,channelId,result);
 			  }
 			}
@@ -367,19 +385,19 @@ setTimeout(function(){
 		var result = songrequestsUsage[channelId];
 		delete songrequestsUsage[channelId];
 		if (songIsInCoolDown[result] === true) {
-			sendMessage(livechatId, 'The song "'+songs[result]+'" is on a cooldown... @' + username);
+			sendMessage(livechatId, 'The song "'+songs[result].songname+'" is on a cooldown... @' + username);
 		} else {
 			songIsInCoolDown[result] = true;
 			userIsInCoolDown[channelId] = true;
 			setTimeout(resetSongCoolDown,SongCooldown*1000,result);
 			setTimeout(resetUserCoolDown,UserCooldown*1000,channelId,username);
 			http.get("http://127.0.0.1:8888/default/?cmd=QueueItems&param1="+(result),function(res){
-			  sendMessage(livechatId, '"'+songs[result]+'" has been added to the queue! @' + username);
+			  sendMessage(livechatId, '"'+songs[result].songname+'" has been added to the queue! @' + username);
 			});
 		}
 	  }
 	}
-}, 1000);
+}
 
 function resetSongrequestUsage(channelId,result) {
 	if (songrequestsUsage[channelId]==result) {
@@ -412,7 +430,7 @@ function checkNowPlaying() {
 
 function resetSongCoolDown(songIndexToReset) {
 	console.log(" ");
-	console.log(" > Reset cooldown for " + songs[songIndexToReset]);
+	console.log(" > Reset cooldown for " + songs[songIndexToReset].songname);
 	console.log(" ");
 	songIsInCoolDown[songIndexToReset] = false;
 }
@@ -435,7 +453,7 @@ function searchSongs(input) {
   var highestScore = 0;
   var bestSong = -1;
   for (var i=0; i<songs.length; i++) {
-    songScore = getScore(input, songs[i]);
+    songScore = getScore(input, songs[i].songname);
     if (songScore>highestScore) {
       highestScore = songScore;
       bestSong = i;
@@ -455,7 +473,7 @@ function getScore(input, song) {
       if (song.indexOf(input.substring(i,j)) != -1) score+=input.substring(i,j).length;
     }
   }
-  
+
   //console.log(score + ' - ' + song);
   return score;
 }
