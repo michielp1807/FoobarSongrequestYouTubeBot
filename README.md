@@ -3,6 +3,11 @@ A YouTube bot that lets people from YouTube live chat request songs from your Fo
 
 For the Twitch version of this bot go [here](https://github.com/MichielP1807/FoobarSongrequestTwitchBot).
 
+# WARNING: This repository is not being maintained
+I have stopped working on the FoobarSongrequestYouTubeBot due to the fact that the good people at Google have limited the amount of queries that you can use per day with the YouTube API from 1,000,000 to 10,000. This means that the bot would only be able to load new messages from the live chat every 30 seconds or so if you leave it running 24/7.
+
+However I have found an alternative: You can use another YouTube live chat bot (like the [Streamlabs Chatbot](https://streamlabs.com/chatbot) or [Nightbot](https://nightbot.tv)) to read the chat, and then you can have one of those bots control Foobar2000 to queue music. These chat bots have been verified by YouTube and thus they are able to perform more queries with the YouTube API.
+
 ## Needed for this bot:
 
 * [foobar2000](http://www.foobar2000.org/download "Download foobar2000")
